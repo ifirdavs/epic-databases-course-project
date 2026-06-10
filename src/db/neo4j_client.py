@@ -1,7 +1,9 @@
 """Neo4j connection and utilities."""
 
+from typing import Any, Dict, List
+
 from neo4j import GraphDatabase
-from typing import List, Dict, Any
+
 from src.config import NEO4J_CONFIG
 
 
@@ -19,7 +21,8 @@ class Neo4jClient:
             session.run("CREATE CONSTRAINT user_id IF NOT EXISTS FOR (u:User) REQUIRE u.id IS UNIQUE")
             # Product constraint
             session.run("CREATE CONSTRAINT product_id IF NOT EXISTS FOR (p:Product) REQUIRE p.id IS UNIQUE")
-            # TODO: Add more constraints
+            # TODO: Add more constraints DONE
+            session.run("CREATE CONSTRAINT category_id IF NOT EXISTS FOR (c:Category) REQUIRE c.id IS UNIQUE")
 
     def add_purchase(self, user_id: str, product_id: str, quantity: int, date: str):
         """Add a purchase relationship."""

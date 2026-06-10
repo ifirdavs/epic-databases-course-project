@@ -66,3 +66,6 @@ line-ending = "auto"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
+markers = [
+    "integration: requires PostgreSQL, MongoDB, and Neo4j services",
+]
