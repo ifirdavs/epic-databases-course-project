@@ -3,10 +3,8 @@
 import logging
 import random
 import uuid
-from collections import Counter
 from datetime import UTC, datetime, time, timedelta
 from decimal import Decimal
-from pathlib import Path
 from typing import Any
 
 import pandas as pd
@@ -19,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class PurchaseGenerator:
-    """Create reproducible random purchases without interest-based matching."""
+    """Create reproducible random purchases while ensuring product stock never goes negative."""
 
     CURRENCY_QUANT = Decimal("0.01")
     DEFAULT_PURCHASES = 100
@@ -116,7 +114,6 @@ class PurchaseGenerator:
 
         return pd.DataFrame(purchases, columns=self.PURCHASE_COLUMNS)
 
-
     def _validate_purchases(self, purchases: pd.DataFrame) -> None:
         """Validate generated purchase rows before loading."""
         missing_columns = set(self.PURCHASE_COLUMNS) - set(purchases.columns)
@@ -153,72 +150,69 @@ class PurchaseGenerator:
             )
         return records
 
-    @staticmethod
-    def _product_quantities(records: list[dict[str, Any]]) -> Counter[str]:
-        """Aggregate requested quantities by product."""
-        quantities: Counter[str] = Counter()
-        for record in records:
-            quantities[record["product_id"]] += record["quantity"]
-        return quantities
-
     def load_postgres(self, purchases: pd.DataFrame) -> None:
-        """Load generated purchases into PostgreSQL in one transaction."""
+        """Load each generated order into PostgreSQL as its own transaction."""
         records = self._normalise_purchase_records(purchases)
-        order_ids = sorted(record["order_id"] for record in records)
-        item_ids = sorted(record["order_item_id"] for record in records)
-        required_by_product = self._product_quantities(records)
+        loaded_count = 0
+        skipped_count = 0
 
-        with db.get_cursor() as cursor:
-            cursor.execute("SELECT id::text FROM orders WHERE id::text = ANY(%s);", (order_ids,))
-            existing_order_ids = {row["id"] for row in cursor.fetchall()}
-            cursor.execute("SELECT id::text FROM order_items WHERE id::text = ANY(%s);", (item_ids,))
-            existing_item_ids = {row["id"] for row in cursor.fetchall()}
+        for record in records:
+            with db.get_cursor() as cursor:
+                cursor.execute(
+                    "SELECT id::text FROM orders WHERE id::text = %(order_id)s;",
+                    record,
+                )
+                order_exists = cursor.fetchone() is not None
+                cursor.execute(
+                    "SELECT id::text FROM order_items WHERE id::text = %(order_item_id)s;",
+                    record,
+                )
+                item_exists = cursor.fetchone() is not None
 
-            if existing_order_ids or existing_item_ids:
-                if len(existing_order_ids) == len(order_ids) and len(existing_item_ids) == len(item_ids):
-                    logger.info("PostgreSQL purchase batch already exists; skipping inventory decrement")
-                    return
-                raise RuntimeError("Partial Phase 2 purchase batch exists; clean it before reloading")
-
-            product_ids = sorted(required_by_product)
-            cursor.execute(
-                "SELECT id, stock FROM products WHERE id = ANY(%s) ORDER BY id FOR UPDATE;",
-                (product_ids,),
-            )
-            locked_products = {row["id"]: row["stock"] for row in cursor.fetchall()}
-            if set(locked_products) != set(product_ids):
-                missing = sorted(set(product_ids) - set(locked_products))
-                raise RuntimeError(f"Cannot load purchases; products are missing from PostgreSQL: {missing}")
-
-            for product_id, quantity in required_by_product.items():
-                if locked_products[product_id] < quantity:
+                if order_exists or item_exists:
+                    if order_exists and item_exists:
+                        skipped_count += 1
+                        continue
                     raise RuntimeError(
-                        f"Insufficient stock for {product_id}: need {quantity}, have {locked_products[product_id]}"
+                        f"Partial Phase 2 order exists for order_id={record['order_id']}; clean it before reloading"
                     )
 
-            cursor.executemany(
-                """
-                INSERT INTO orders (id, user_id, ordered_at, total_amount)
-                VALUES (%(order_id)s, %(user_id)s, %(ordered_at)s, %(order_total)s);
-                """,
-                records,
-            )
-            cursor.executemany(
-                """
-                INSERT INTO order_items (id, order_id, product_id, quantity, unit_price)
-                VALUES (%(order_item_id)s, %(order_id)s, %(product_id)s, %(quantity)s, %(unit_price)s);
-                """,
-                records,
-            )
-            cursor.executemany(
-                "UPDATE products SET stock = stock - %(quantity)s WHERE id = %(product_id)s;",
-                [
-                    {"product_id": product_id, "quantity": quantity}
-                    for product_id, quantity in sorted(required_by_product.items())
-                ],
-            )
+                cursor.execute(
+                    "SELECT id, stock FROM products WHERE id = %(product_id)s FOR UPDATE;",
+                    record,
+                )
+                product = cursor.fetchone()
+                if product is None:
+                    raise RuntimeError(
+                        f"Cannot load purchase {record['order_id']}; product {record['product_id']} is missing"
+                    )
+                if product["stock"] < record["quantity"]:
+                    raise RuntimeError(
+                        f"Insufficient stock for {record['product_id']}: "
+                        f"need {record['quantity']}, have {product['stock']}"
+                    )
 
-        logger.info("Loaded %s PostgreSQL purchases", len(records))
+                cursor.execute(
+                    """
+                    INSERT INTO orders (id, user_id, ordered_at, total_amount)
+                    VALUES (%(order_id)s, %(user_id)s, %(ordered_at)s, %(order_total)s);
+                    """,
+                    record,
+                )
+                cursor.execute(
+                    """
+                    INSERT INTO order_items (id, order_id, product_id, quantity, unit_price)
+                    VALUES (%(order_item_id)s, %(order_id)s, %(product_id)s, %(quantity)s, %(unit_price)s);
+                    """,
+                    record,
+                )
+                cursor.execute(
+                    "UPDATE products SET stock = stock - %(quantity)s WHERE id = %(product_id)s;",
+                    record,
+                )
+                loaded_count += 1
+
+        logger.info("Loaded %s PostgreSQL purchases; skipped %s existing purchases", loaded_count, skipped_count)
 
     def sync_neo4j(self, purchases: pd.DataFrame) -> None:
         """Mirror generated purchases into Neo4j."""
