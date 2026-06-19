@@ -1,6 +1,6 @@
 """Neo4j connection and utilities."""
 
-from typing import Any, Dict, List
+from typing import Any
 
 from neo4j import GraphDatabase
 
@@ -24,13 +24,52 @@ class Neo4jClient:
             # TODO: Add more constraints DONE
             session.run("CREATE CONSTRAINT category_id IF NOT EXISTS FOR (c:Category) REQUIRE c.id IS UNIQUE")
 
-    def add_purchase(self, user_id: str, product_id: str, quantity: int, date: str):
+    def add_purchase(
+        self,
+        user_id: str,
+        product_id: str,
+        quantity: int,
+        date: str,
+        order_id: str | None = None,
+        order_item_id: str | None = None,
+    ) -> int:
         """Add a purchase relationship."""
-        with self.driver.session() as session:
-            # TODO: Implement the Cypher query
-            pass
+        # TODO: Implement the Cypher query DONE
+        return self.add_purchases(
+            [
+                {
+                    "user_id": user_id,
+                    "product_id": product_id,
+                    "quantity": quantity,
+                    "date": date,
+                    "order_id": order_id or f"{user_id}:{date}",
+                    "order_item_id": order_item_id or f"{user_id}:{product_id}:{date}",
+                }
+            ]
+        )
 
-    def get_recommendations(self, user_id: str, limit: int = 5) -> List[Dict[str, Any]]:
+    def add_purchases(self, purchases: list[dict[str, Any]]) -> int:
+        """Merge purchase relationships keyed by generated order item ID."""
+        if not purchases:
+            return 0
+
+        with self.driver.session() as session:
+            result = session.run(
+                """
+                UNWIND $purchases AS purchase
+                MATCH (user:User {id: purchase.user_id})
+                MATCH (product:Product {id: purchase.product_id})
+                MERGE (user)-[relationship:PURCHASED {order_item_id: purchase.order_item_id}]->(product)
+                SET relationship.order_id = purchase.order_id,
+                    relationship.quantity = toInteger(purchase.quantity),
+                    relationship.date = datetime(purchase.date)
+                RETURN count(relationship) AS synced_count
+                """,
+                purchases=purchases,
+            ).single()
+        return result["synced_count"] if result else 0
+
+    def get_recommendations(self, user_id: str, limit: int = 5) -> list[dict[str, Any]]:
         """Get product recommendations for a user."""
         # TODO: Implement recommendation query
         pass

@@ -27,4 +27,13 @@ well suited for production use and to incremental embedding inserts as products 
 
 # Phase 2
 
+Implemented simple deterministic purchase generation and loading:
+- The generator creates 100 one-product purchases with seed 33, random users/products, and random quantities from 1–3.
+
+- It chooses products with remaining stock and caps quantity when needed, then verifies stock never goes negative.
+
+- PostgreSQL loads orders and order items **transactionally** and decrements inventory once; reruns detect the existing batch and **skip duplicate** stock changes.
+
+- Neo4j mirrors each order item as one idempotent `PURCHASED` relationship.
+
 # Phase 3

@@ -40,6 +40,16 @@ def test_phase1_loaders_are_idempotent_and_preserve_integrity():
     graph_loader = GraphLoader()
     vector_loader = VectorLoader(model=FakeEmbeddingModel())
 
+    with db.get_cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT
+                (SELECT COUNT(*) FROM orders) AS orders,
+                (SELECT COUNT(*) FROM order_items) AS order_items;
+            """
+        )
+        initial_transaction_counts = cursor.fetchone()
+
     for _ in range(2):
         relational_loader.load_all()
         document_loader.load_all()
@@ -77,8 +87,8 @@ def test_phase1_loaders_are_idempotent_and_preserve_integrity():
         "sellers": 45,
         "categories": 6,
         "products": 60,
-        "orders": 0,
-        "order_items": 0,
+        "orders": initial_transaction_counts["orders"],
+        "order_items": initial_transaction_counts["order_items"],
         "embeddings": 60,
     }
     assert vector_dimensions == 384
