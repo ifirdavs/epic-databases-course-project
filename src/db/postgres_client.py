@@ -92,6 +92,7 @@ class PostgresConnection:
                 stock INTEGER NOT NULL CHECK (stock >= 0)
             );
             """,
+            "ALTER TABLE products ADD COLUMN IF NOT EXISTS search_vector tsvector NOT NULL DEFAULT ''::tsvector;",
             """
             CREATE TABLE IF NOT EXISTS orders (
                 id UUID PRIMARY KEY,
@@ -116,9 +117,13 @@ class PostgresConnection:
                 description_embedding vector(384) NOT NULL
             );
             """,
-            "CREATE INDEX IF NOT EXISTS products_category_id_idx ON products (category_id);",    # search by category.
-            "CREATE INDEX IF NOT EXISTS products_seller_id_idx ON products (seller_id);",    # efficient seller-catalog queries.
-            "CREATE INDEX IF NOT EXISTS orders_user_ordered_at_idx ON orders (user_id, ordered_at DESC);",   # user's recent orders.
+            "CREATE INDEX IF NOT EXISTS products_category_id_idx ON products (category_id);",  # search by category.
+            "CREATE INDEX IF NOT EXISTS products_seller_id_idx ON products (seller_id);",  # efficient seller-catalog queries.
+            """
+            CREATE INDEX IF NOT EXISTS products_full_text_search_idx
+            ON products USING GIN (search_vector);
+            """,  # full-text product search by name, description, and tags.
+            "CREATE INDEX IF NOT EXISTS orders_user_ordered_at_idx ON orders (user_id, ordered_at DESC);",  # user's recent orders.
             "CREATE INDEX IF NOT EXISTS order_items_order_id_idx ON order_items (order_id);",
             "CREATE INDEX IF NOT EXISTS order_items_product_id_idx ON order_items (product_id);",  # speeds up product purchase-history queries.
         ]

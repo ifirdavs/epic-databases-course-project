@@ -67,7 +67,9 @@ class RelationalLoader:
                     join_date = EXCLUDED.join_date,
                     location = EXCLUDED.location;
                 """,
-                users.drop(columns=["interests"]).to_dict(orient="records"),   # will store 'interests' in MongoDB 'user_preferences' collection
+                users.drop(columns=["interests"]).to_dict(
+                    orient="records"
+                ),  # will store 'interests' in MongoDB 'user_preferences' collection
             )
         logger.info("Loaded %s users", len(users))
 
@@ -83,10 +85,11 @@ class RelationalLoader:
             cursor.executemany(
                 """
                 INSERT INTO products
-                    (id, name, category_id, seller_id, description, tags, price, stock)
+                    (id, name, category_id, seller_id, description, tags, price, stock, search_vector)
                 VALUES
                     (%(id)s, %(name)s, %(category_id)s, %(seller_id)s, %(description)s,
-                     %(tags)s, %(price)s, %(stock)s)
+                     %(tags)s, %(price)s, %(stock)s,
+                     to_tsvector('english', %(name)s || ' ' || %(description)s || ' ' || array_to_string(%(tags)s::text[], ' ')))
                 ON CONFLICT (id) DO UPDATE
                 SET name = EXCLUDED.name,
                     category_id = EXCLUDED.category_id,
@@ -94,9 +97,10 @@ class RelationalLoader:
                     description = EXCLUDED.description,
                     tags = EXCLUDED.tags,
                     price = EXCLUDED.price,
-                    stock = EXCLUDED.stock;
+                    stock = EXCLUDED.stock,
+                    search_vector = EXCLUDED.search_vector;
                 """,
-                products.drop(columns=["category"]).to_dict(orient="records"),   # already have 'categories' table
+                products.drop(columns=["category"]).to_dict(orient="records"),  # already have 'categories' table
             )
         logger.info("Loaded %s products", len(products))
 

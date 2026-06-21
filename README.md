@@ -37,3 +37,12 @@ Implemented simple deterministic purchase generation and loading:
 - Neo4j mirrors each order item as one idempotent `PURCHASED` relationship.
 
 # Phase 3
+
+## Product Search with Caching
+
+Implemented product search as the first Phase 3 feature set:
+- PostgreSQL handles full-text search across product `name`, `description`, and `tags` using a stored `products.search_vector` column.
+- A GIN index on `search_vector` supports efficient text queries; the relational loader refreshes the vector on every product upsert.
+- Search supports category filters by category ID or name, plus optional `min_price` and `max_price` filters.
+- Redis caches normalized search requests for one hour, so repeated identical searches can return without hitting PostgreSQL.
+- Redis is only an optimization: if cache reads/writes fail, the service still returns fresh PostgreSQL results.
