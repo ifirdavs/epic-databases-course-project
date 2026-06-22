@@ -216,18 +216,18 @@ Complete `src/utils/purchase_generator.py` script to:
 
 #### 1. Product Search with Caching
 Implement *at least three* of the following:
-- Full-text search in PostgreSQL
-- Cache results in Redis (1-hour TTL)
-- Search by name, description, tags
-- Filter by category and price range
+- *Full-text search in PostgreSQL
+- *Cache results in Redis (1-hour TTL)
+- *Search by name, description, tags
+- *Filter by category and price range
 - Track cache hit rates
 
 #### 2. Shopping Cart Management
 Implement *at least two* of the following:
-- Session-based carts in Redis
-- Add/remove/update items
+- *Session-based carts in Redis
+- *Add/remove/update items
 - Convert cart to order
-- Handle cart expiration (24-hour TTL)
+- *Handle cart expiration (24-hour TTL)
 
 #### 3. Recommendation System
 Implement *at least two* of the following:
