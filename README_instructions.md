@@ -232,18 +232,18 @@ Implement *at least two* of the following:
 #### 3. Recommendation System
 Implement *at least two* of the following:
 - Collaborative filtering using Neo4j
-- "Also bought" recommendations
+- *"Also bought" recommendations
 - "Frequently bought together"
-- Personalized user recommendations
-- Similar product suggestions
+- *Personalized user recommendations
+- *Similar product suggestions
 
 #### 4. Semantic Search
 Implement *at least two* of the following:
-- Generate product embeddings
-- Vector similarity search
-- "More like this" functionality
-- Natural language product search
-- Combine with traditional search
+- *Generate product embeddings
+- *Vector similarity search
+- *"More like this" functionality
+- *Natural language product search  (idea: query to embedding, compare with product embeddings, return top N results, also cache results in Redis)
+- Combine with traditional search  (idea: final_score = 0.6 * full_text_rank + 0.4 * vector_similarity)
 
 
 ## Development Guidelines

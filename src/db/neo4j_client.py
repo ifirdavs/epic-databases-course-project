@@ -69,10 +69,71 @@ class Neo4jClient:
             ).single()
         return result["synced_count"] if result else 0
 
+    @staticmethod
+    def _recommendation_record(row) -> dict[str, Any]:
+        """Convert a Neo4j recommendation row into a plain dictionary."""
+        return {
+            "id": row["id"],
+            "name": row["name"],
+            "category": row["category"],
+            "price": row["price"],
+            "score": row["score"],
+        }
+
+    def get_also_bought(self, product_id: str, limit: int = 5) -> list[dict[str, Any]]:
+        """Recommend products bought by users who also bought the given product."""
+        with self.driver.session() as session:
+            result = session.run(
+                """
+                MATCH (product:Product {id: $product_id})<-[:PURCHASED]-(buyer:User)
+                MATCH (buyer)-[:PURCHASED]->(recommendation:Product)
+                WHERE recommendation.id <> product.id
+                WITH recommendation, count(DISTINCT buyer) AS score
+                RETURN
+                    recommendation.id AS id,
+                    recommendation.name AS name,
+                    recommendation.category AS category,
+                    recommendation.price AS price,
+                    score
+                ORDER BY score DESC, id ASC
+                LIMIT $limit
+                """,
+                product_id=product_id,
+                limit=limit,
+            )
+            return [self._recommendation_record(row) for row in result]
+
+    def get_personalized_recommendations(self, user_id: str, limit: int = 5) -> list[dict[str, Any]]:
+        """Recommend products from similar users' purchase histories."""
+        with self.driver.session() as session:
+            result = session.run(
+                """
+                MATCH (user:User {id: $user_id})-[:PURCHASED]->(owned:Product)<-[:PURCHASED]-(peer:User)
+                WHERE peer.id <> user.id
+                WITH user, peer, count(DISTINCT owned) AS overlap
+                MATCH (peer)-[:PURCHASED]->(recommendation:Product)
+                WHERE NOT EXISTS {
+                    MATCH (user)-[:PURCHASED]->(recommendation)
+                }
+                WITH recommendation, sum(overlap) AS score
+                RETURN
+                    recommendation.id AS id,
+                    recommendation.name AS name,
+                    recommendation.category AS category,
+                    recommendation.price AS price,
+                    score
+                ORDER BY score DESC, id ASC
+                LIMIT $limit
+                """,
+                user_id=user_id,
+                limit=limit,
+            )
+            return [self._recommendation_record(row) for row in result]
+
     def get_recommendations(self, user_id: str, limit: int = 5) -> list[dict[str, Any]]:
         """Get product recommendations for a user."""
-        # TODO: Implement recommendation query
-        pass
+        # TODO: Implement recommendation query DONE
+        return self.get_personalized_recommendations(user_id, limit)
 
 
 # Singleton instance
