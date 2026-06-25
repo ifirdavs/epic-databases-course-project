@@ -18,9 +18,9 @@ class MongoDBClient:
     def create_indexes(self):
         """Create necessary indexes."""
         # TODO: Add indexes as needed DONE
-        
+
         # self.db.reviews.create_index([("review_id", ASCENDING)], unique=True)  # already have MongoDB's default _id index.
-        
+
         self.db.reviews.create_index(
             [("product_id", ASCENDING), ("created_at", DESCENDING)]  # recent reviews by product.
         )
@@ -28,7 +28,7 @@ class MongoDBClient:
         self.db.reviews.create_index([("user_id", ASCENDING)])  # review-history queries by user.
         self.db.product_specs.create_index([("product_id", ASCENDING)], unique=True)
         self.db.seller_profiles.create_index([("seller_id", ASCENDING)], unique=True)
-        
+
         self.db.user_preferences.create_index(
             [("user_id", ASCENDING)], unique=True
         )  # Speeds preference lookups by user.

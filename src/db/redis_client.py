@@ -21,7 +21,7 @@ class RedisClient:
 
     def set_json(self, key: str, value: Any, ttl: int = CACHE_TTL) -> bool:
         """Set JSON data in Redis with TTL."""
-        return self.client.setex(key, ttl, json.dumps(value))
+        return self.client.set(key, json.dumps(value), ex=ttl)
 
     @classmethod
     def cart_key(cls, user_id: str) -> str:

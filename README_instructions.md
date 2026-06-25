@@ -235,15 +235,17 @@ Implement *at least two* of the following:
 - *"Also bought" recommendations
 - "Frequently bought together"
 - *Personalized user recommendations
-- *Similar product suggestions
+- *Similar product suggestions (vector-based)
 
 #### 4. Semantic Search
 Implement *at least two* of the following:
-- *Generate product embeddings
-- *Vector similarity search
-- *"More like this" functionality
+- *Generate product embeddings (implemented in phase 1)
+- *Vector similarity search   (Similar product suggestions)
+- *"More like this" functionality   (Similar product suggestions)
 - *Natural language product search  (idea: query to embedding, compare with product embeddings, return top N results, also cache results in Redis)
 - Combine with traditional search  (idea: final_score = 0.6 * full_text_rank + 0.4 * vector_similarity)
+
+Marked with '*' items were implemented in this project.
 
 
 ## Development Guidelines
@@ -271,10 +273,6 @@ pytest --cov=src --cov-report=html
 
 ### Load Initial Data
 ```bash
-# Using make
-make run-postgres-loader
-
-# Or directly
 uv run python -m src.loaders.relational_loader
 uv run python -m src.loaders.document_loader
 uv run python -m src.loaders.graph_loader
