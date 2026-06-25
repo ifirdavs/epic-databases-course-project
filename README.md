@@ -17,7 +17,7 @@ Also, generated additional 20 records for `products.csv` to have more products *
 
 ### Key Points
 
-- PostgreSQL uses UUID for an `order` table `id` and the purchase transactions are implemented to be **idempotent** in Phase 2.
+- PostgreSQL uses UUID for an `order` table `id` and the purchase transactions are implemented to be **idempotent** in Phase 2 so that to count for such scenarios where Order REST request is sent multiple times (user pressed Order button several times when nothing happened first time – the request couldn't reach the server due to network issues, etc.)
 
 - MongoDB requires loading `reviews` (with nested comments), category-specific product specifications `product_specs`,
 seller portfolios `seller_profiles`, and user-preference/behaviour `user_preferences` documents.
@@ -101,7 +101,7 @@ Implemented product full-text search and some search filters:
 - PostgreSQL handles full-text search across product `name`, `description`, and `tags` using a stored `products.search_vector` column.
 
 - A **GIN index** on `search_vector` supports efficient text queries; the relational loader refreshes the vector on every product **upsert**.
-- Search supports *category filters* by category `id` or `name`, plus optional `min_price` and `max_price` filters.
+- Search supports category filters by category `id` or `name`, plus optional `min_price` and `max_price` filters.
 - Redis **caches** normalized search requests for **one hour**, so repeated identical searches can return without hitting PostgreSQL.
 - Redis is only an optimization: if cache reads/writes fail, the service still returns fresh PostgreSQL results.
 
@@ -125,9 +125,18 @@ Implemented product full-text search and some search filters:
 <br><br>
 
 
-## 2. Shopping Cart Management
+## 2. Shopping Cart Management 
 
-Implemented Redis-backed cart sessions:
+I've made it to simulate the **scenario** when an unauthenticated user (anonymous user) goes through products and decides to save some to a cart **staying unauthenticated** (if he decides to purchase them later website forces to authenticate ofc). 
+
+In practice, there are **two** main implementation methods:
+  1. (Most Common) Many modern e-commerce platforms store the many information including cart items and their quantities in **browser's `localStorage`**.
+
+  2. It's stored on server-side key-value stores (Redis) for a unique **session ID** (anonymous ID) generated for that anon user and only that session ID is saved as a single **local cookie**.
+
+<br>
+
+As per project requirements I've implemented **Redis-backed cart sessions** (2nd method):
 - Each user cart is stored as a Redis Hash at `cart:{user_id}`, with product IDs as fields and quantities as values.
 
 - `add_to_cart` increments existing quantities, while `update_cart_item` sets an exact quantity and removes the item when set to zero.
