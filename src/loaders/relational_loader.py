@@ -18,7 +18,7 @@ class RelationalLoader:
         categories = self.parser.parse_categories()
 
         with self.db.get_cursor() as cursor:
-            # TODO: Implement INSERT query DONE
+            # DONE: Implement INSERT query
             cursor.executemany(
                 """
                 INSERT INTO categories (id, name, description)
@@ -33,7 +33,7 @@ class RelationalLoader:
 
     def load_sellers(self):
         """Load sellers into PostgreSQL."""
-        # TODO: Implement seller loading DONE
+        # DONE: Implement seller loading
         sellers = self.parser.parse_sellers().copy()
         sellers["joined"] = sellers["joined"].dt.date
         with self.db.get_cursor() as cursor:
@@ -53,7 +53,7 @@ class RelationalLoader:
 
     def load_users(self):
         """Load users into PostgreSQL."""
-        # TODO: Implement user loading DONE
+        # DONE: Implement user loading
         users = self.parser.parse_users().copy()
         users["join_date"] = users["join_date"].dt.date
         with self.db.get_cursor() as cursor:
@@ -75,7 +75,7 @@ class RelationalLoader:
 
     def load_products(self):
         """Load products into PostgreSQL."""
-        # TODO: Implement product loading DONE
+        # DONE: Implement product loading
         products = self.parser.parse_products().copy()
         categories = self.parser.parse_categories()
         category_ids = dict(zip(categories["name"], categories["id"], strict=True))
@@ -114,7 +114,7 @@ class RelationalLoader:
             self.load_sellers()
             self.load_users()
 
-            # TODO: Load remaining data DONE
+            # DONE: Load remaining data
             self.load_products()
             logger.info("Relational data loading complete")
         except Exception:

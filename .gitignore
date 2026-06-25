@@ -23,4 +23,6 @@ venv.bak/
 *.log
 .DS_Store
 data/processed/
-.notes
+.ideas_phase3
+# .notes
+.git_commit
